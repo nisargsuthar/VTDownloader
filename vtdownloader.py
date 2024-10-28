@@ -44,8 +44,6 @@ logging.basicConfig(level=logging.INFO, stream=sys.stdout,
 # Retrieve only the SHA-256 of the matching files
 def get_results(search, numfiles):
 
-	table = []
-
 	url = 'https://www.virustotal.com/api/v3/intelligence/search?'
 	headers = {'X-apikey':VT_API_KEY}
 	params = urllib.parse.urlencode({'query':search, 'limit':numfiles, 'descriptors_only':'true'})
@@ -160,7 +158,6 @@ def get_metadata(file_id):
 	
 	# Retrieve desired fields
 	metadata.append(responseJSON['data']['attributes']['sha256'])
-	metadata.append(responseJSON['data']['attributes']['meaningful_name'])
 	metadata.append(str(responseJSON['data']['attributes']['size']) + ' bytes')
 	metadata.append(datetime.utcfromtimestamp(responseJSON['data']['attributes']['last_submission_date']).strftime('%Y-%m-%dT%H:%M:%SZ'))
 
@@ -168,7 +165,7 @@ def get_metadata(file_id):
 
 # Wrapper for tabulate
 def print_downloads(table):
-	headers = ["SHA-256", "Filename", "Size", "Latest Submission"]
+	headers = ["SHA-256", "Size", "Latest Submission"]
 	print('\nFiles downloaded:\n')
 	print(tabulate(table, headers, showindex=True, tablefmt="grid"))
 	return
@@ -194,13 +191,17 @@ def main():
 
 	requests.packages.urllib3.disable_warnings()
 
+	table = []
+
 	if hashfile:
 		if os.path.exists(hashfile):
 			with open(hashfile, 'rt') as inputfile:
 				logging.info('[*] Now reading hashes to download from file.')
 				hashes = re.findall('([0-9a-fA-F]{64}|[0-9a-fA-F]{40}|[0-9a-fA-F]{32})', inputfile.read())
 				hash_list = list(hashes)
-				download_files(hash_list)
+				# Create a table with metadata for the hashes
+				table = [get_metadata(h) for h in hash_list]
+				download_files(hash_list, table)  # Pass the table here
 		else:
 			logging.info("[-] Error: {} not found".format(hashfile))
 
